@@ -6,6 +6,7 @@ const {
   ipcMain,
   Menu,
   nativeImage,
+  net,
   screen,
   Tray
 } = require("electron");
@@ -353,6 +354,7 @@ function getOpenAIConfig() {
 
   return {
     apiKey,
+    baseUrl: process.env.OPENAI_BASE_URL || "https://api.openai.com/v1",
     model: process.env.OPENAI_MODEL || "gpt-5-mini"
   };
 }
@@ -378,14 +380,10 @@ function extractResponseText(payload) {
 }
 
 async function callOpenAI({ instructions, content, maxOutputTokens = 1200 }) {
-  const { apiKey, model } = getOpenAIConfig();
-  const response = await fetch("https://api.openai.com/v1/responses", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({
+  const { apiKey, baseUrl, model } = getOpenAIConfig();
+  const payload = await requestOpenAIJson({
+    apiKey,
+    body: {
       model,
       instructions,
       input: [
@@ -395,14 +393,9 @@ async function callOpenAI({ instructions, content, maxOutputTokens = 1200 }) {
         }
       ],
       max_output_tokens: maxOutputTokens
-    })
+    },
+    url: `${baseUrl.replace(/\/$/, "")}/responses`
   });
-
-  const payload = await response.json().catch(() => null);
-  if (!response.ok) {
-    const message = payload?.error?.message || `OpenAI request failed: ${response.status}`;
-    throw new Error(message);
-  }
 
   const text = extractResponseText(payload);
   if (!text) {
@@ -410,6 +403,51 @@ async function callOpenAI({ instructions, content, maxOutputTokens = 1200 }) {
   }
 
   return text;
+}
+
+function requestOpenAIJson({ apiKey, body, url }) {
+  return new Promise((resolve, reject) => {
+    const request = net.request({
+      method: "POST",
+      url
+    });
+
+    request.setHeader("Authorization", `Bearer ${apiKey}`);
+    request.setHeader("Content-Type", "application/json");
+
+    request.on("response", (response) => {
+      const chunks = [];
+      response.on("data", (chunk) => chunks.push(Buffer.from(chunk)));
+      response.on("end", () => {
+        const responseText = Buffer.concat(chunks).toString("utf8");
+        let parsed = null;
+        try {
+          parsed = responseText ? JSON.parse(responseText) : null;
+        } catch {
+          reject(new Error(`OpenAI returned a non-JSON response: ${responseText.slice(0, 160)}`));
+          return;
+        }
+
+        if (response.statusCode < 200 || response.statusCode >= 300) {
+          const message = parsed?.error?.message || `OpenAI request failed: ${response.statusCode}`;
+          reject(new Error(message));
+          return;
+        }
+        resolve(parsed);
+      });
+    });
+
+    request.on("error", (error) => {
+      reject(
+        new Error(
+          `OpenAI network request failed: ${error.message}. Check VPN/proxy access to api.openai.com, or set OPENAI_BASE_URL.`
+        )
+      );
+    });
+
+    request.write(JSON.stringify(body));
+    request.end();
+  });
 }
 
 app.whenReady().then(() => {
