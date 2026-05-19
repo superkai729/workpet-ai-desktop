@@ -346,66 +346,43 @@ async function capturePrimaryScreen() {
   };
 }
 
-function getOpenAIConfig() {
-  const apiKey = process.env.OPENAI_API_KEY;
+function getDeepSeekConfig() {
+  const apiKey = process.env.DEEPSEEK_API_KEY;
   if (!apiKey) {
-    throw new Error("OpenAI API key is missing. Create .env with OPENAI_API_KEY.");
+    throw new Error("DeepSeek API key is missing. Create .env with DEEPSEEK_API_KEY.");
   }
 
   return {
     apiKey,
-    baseUrl: process.env.OPENAI_BASE_URL || "https://api.openai.com/v1",
-    model: process.env.OPENAI_MODEL || "gpt-5-mini"
+    baseUrl: process.env.DEEPSEEK_BASE_URL || "https://api.deepseek.com",
+    model: process.env.DEEPSEEK_MODEL || "deepseek-chat"
   };
 }
 
-function extractResponseText(payload) {
-  if (typeof payload?.output_text === "string" && payload.output_text.trim()) {
-    return payload.output_text.trim();
-  }
-
-  const textParts = [];
-  for (const outputItem of payload?.output || []) {
-    for (const contentItem of outputItem?.content || []) {
-      if (contentItem?.type === "output_text" && contentItem.text) {
-        textParts.push(contentItem.text);
-      }
-      if (contentItem?.type === "text" && contentItem.text) {
-        textParts.push(contentItem.text);
-      }
-    }
-  }
-
-  return textParts.join("\n").trim();
-}
-
-async function callOpenAI({ instructions, content, maxOutputTokens = 1200 }) {
-  const { apiKey, baseUrl, model } = getOpenAIConfig();
-  const payload = await requestOpenAIJson({
+async function callDeepSeek({ messages, maxTokens = 1200, temperature = 0.3 }) {
+  const { apiKey, baseUrl, model } = getDeepSeekConfig();
+  const payload = await requestJson({
     apiKey,
     body: {
       model,
-      instructions,
-      input: [
-        {
-          role: "user",
-          content
-        }
-      ],
-      max_output_tokens: maxOutputTokens
+      messages,
+      max_tokens: maxTokens,
+      temperature,
+      stream: false
     },
-    url: `${baseUrl.replace(/\/$/, "")}/responses`
+    providerName: "DeepSeek",
+    url: `${baseUrl.replace(/\/$/, "")}/chat/completions`
   });
 
-  const text = extractResponseText(payload);
+  const text = payload?.choices?.[0]?.message?.content?.trim();
   if (!text) {
-    throw new Error("OpenAI returned an empty response.");
+    throw new Error("DeepSeek returned an empty response.");
   }
 
   return text;
 }
 
-function requestOpenAIJson({ apiKey, body, url }) {
+function requestJson({ apiKey, body, providerName, url }) {
   return new Promise((resolve, reject) => {
     const request = net.request({
       method: "POST",
@@ -424,12 +401,12 @@ function requestOpenAIJson({ apiKey, body, url }) {
         try {
           parsed = responseText ? JSON.parse(responseText) : null;
         } catch {
-          reject(new Error(`OpenAI returned a non-JSON response: ${responseText.slice(0, 160)}`));
+          reject(new Error(`${providerName} returned a non-JSON response: ${responseText.slice(0, 160)}`));
           return;
         }
 
         if (response.statusCode < 200 || response.statusCode >= 300) {
-          const message = parsed?.error?.message || `OpenAI request failed: ${response.statusCode}`;
+          const message = parsed?.error?.message || `${providerName} request failed: ${response.statusCode}`;
           reject(new Error(message));
           return;
         }
@@ -440,7 +417,7 @@ function requestOpenAIJson({ apiKey, body, url }) {
     request.on("error", (error) => {
       reject(
         new Error(
-          `OpenAI network request failed: ${error.message}. Check VPN/proxy access to api.openai.com, or set OPENAI_BASE_URL.`
+          `${providerName} network request failed: ${error.message}. Check network/proxy access, or set DEEPSEEK_BASE_URL.`
         )
       );
     });
@@ -564,48 +541,44 @@ ipcMain.handle("screenshot:cancel-selection", () => {
 ipcMain.handle("screenshot:get-latest", () => latestScreenshot);
 
 ipcMain.handle("ai:chat", async (_event, question) => {
-  return callOpenAI({
-    instructions:
-      "你是工位小宠里的轻量工作助手。回答要简洁、直接、友好。除非用户要求展开，否则优先给可执行结论。",
-    content: [{ type: "input_text", text: question }],
-    maxOutputTokens: 1400
+  return callDeepSeek({
+    messages: [
+      {
+        role: "system",
+        content:
+          "You are the lightweight work assistant inside a desktop pet app. Reply in the user's language. Be concise, direct, friendly, and practical."
+      },
+      { role: "user", content: question }
+    ],
+    maxTokens: 1400,
+    temperature: 0.4
   });
 });
 
 ipcMain.handle("ai:translate", async (_event, text) => {
-  return callOpenAI({
-    instructions:
-      "你是专业翻译助手。自动识别输入语言：中文翻译成自然英文；非中文翻译成自然中文。只输出译文，不要解释。",
-    content: [{ type: "input_text", text }],
-    maxOutputTokens: 1600
-  });
-});
-
-ipcMain.handle("ai:ocr", async (_event, imageDataUrl) => {
-  return callOpenAI({
-    instructions:
-      "你是 OCR 助手。请准确识别图片中的可见文字，保持原文语言和换行。只输出识别到的文字；如果没有文字，输出“未识别到文字”。",
-    content: [
-      { type: "input_text", text: "识别这张截图里的文字。" },
-      { type: "input_image", image_url: imageDataUrl }
+  return callDeepSeek({
+    messages: [
+      {
+        role: "system",
+        content:
+          "You are a professional translator. Auto-detect the input language. Translate Chinese into natural English, and non-Chinese into natural Chinese. Output only the translation."
+      },
+      { role: "user", content: text }
     ],
-    maxOutputTokens: 2200
+    maxTokens: 1600,
+    temperature: 0.1
   });
 });
 
-ipcMain.handle("ai:translate-screenshot", async (_event, imageDataUrl) => {
-  return callOpenAI({
-    instructions:
-      "你是截图翻译助手。先识别图片中的文字，再翻译。中文翻译成自然英文；非中文翻译成自然中文。输出格式：先给“识别文字：”，再给“翻译结果：”。",
-    content: [
-      { type: "input_text", text: "识别并翻译这张截图中的文字。" },
-      { type: "input_image", image_url: imageDataUrl }
-    ],
-    maxOutputTokens: 2600
-  });
+ipcMain.handle("ai:ocr", async () => {
+  throw new Error("当前 DeepSeek 文本接口暂不支持图片 OCR。问答和文本翻译可以正常使用。");
 });
 
+ipcMain.handle("ai:translate-screenshot", async () => {
+  throw new Error("当前 DeepSeek 文本接口不能直接翻译截图。后续接入 OCR 后，可以把识别出的文字交给 DeepSeek 翻译。");
+});
 ipcMain.handle("app:quit", () => {
   isQuitting = true;
   app.quit();
 });
+

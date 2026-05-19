@@ -63,7 +63,7 @@ async function sendChat() {
   try {
     answer.textContent = await window.workpet.askAI(value);
   } catch (error) {
-    answer.textContent = `OpenAI \u8bf7\u6c42\u5931\u8d25: ${error.message}`;
+    answer.textContent = `AI \u8bf7\u6c42\u5931\u8d25: ${error.message}`;
   }
 }
 
@@ -79,7 +79,7 @@ async function translateInputText() {
   try {
     answer.textContent = await window.workpet.translateText(value);
   } catch (error) {
-    answer.textContent = `OpenAI \u7ffb\u8bd1\u5931\u8d25: ${error.message}`;
+    answer.textContent = `AI \u7ffb\u8bd1\u5931\u8d25: ${error.message}`;
   }
 }
 
