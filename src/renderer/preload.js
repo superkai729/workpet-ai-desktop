@@ -2,7 +2,10 @@ const { contextBridge, ipcRenderer } = require("electron");
 
 contextBridge.exposeInMainWorld("workpet", {
   captureScreenshot: () => ipcRenderer.invoke("screenshot:capture"),
+  cancelScreenshotSelection: () => ipcRenderer.invoke("screenshot:cancel-selection"),
+  completeScreenshotSelection: (payload) => ipcRenderer.invoke("screenshot:complete-selection", payload),
   copyScreenshot: (dataUrl) => ipcRenderer.invoke("screenshot:copy", dataUrl),
+  getLatestScreenshot: () => ipcRenderer.invoke("screenshot:get-latest"),
   hidePet: () => ipcRenderer.invoke("pet:hide"),
   movePetBy: (dx, dy) => ipcRenderer.invoke("pet:move-by", { dx, dy }),
   openTool: (tool) => ipcRenderer.invoke("tool:open", tool),

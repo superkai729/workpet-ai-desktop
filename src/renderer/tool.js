@@ -19,15 +19,20 @@ function showOnly(activeTool) {
 }
 
 async function captureScreenshot() {
-  screenshotStatus.textContent = "\u6b63\u5728\u622a\u53d6\u5f53\u524d\u5c4f\u5e55...";
+  screenshotStatus.textContent = "\u6b63\u5728\u8bfb\u53d6\u6846\u9009\u7ed3\u679c...";
   copyShot.disabled = true;
   screenshotImage.removeAttribute("src");
 
   try {
-    const result = await window.workpet.captureScreenshot();
+    const result = await window.workpet.getLatestScreenshot();
+    if (!result?.dataUrl) {
+      screenshotStatus.textContent = "\u8fd8\u6ca1\u6709\u622a\u56fe\u7ed3\u679c, \u8bf7\u91cd\u65b0\u6846\u9009\u3002";
+      return;
+    }
+
     currentScreenshotDataUrl = result.dataUrl;
     screenshotImage.src = result.dataUrl;
-    screenshotStatus.textContent = `\u5df2\u622a\u53d6 ${result.displayName}, ${result.width} x ${result.height}`;
+    screenshotStatus.textContent = `\u5df2\u81ea\u52a8\u590d\u5236\u5230\u526a\u8d34\u677f, ${result.width} x ${result.height}`;
     copyShot.disabled = false;
   } catch (error) {
     screenshotStatus.textContent = `\u622a\u56fe\u5931\u8d25: ${error.message}`;
@@ -62,7 +67,7 @@ document.querySelector("#translateSend").addEventListener("click", () => {
 });
 
 recaptureShot.addEventListener("click", () => {
-  captureScreenshot();
+  window.workpet.openTool("screenshot");
 });
 
 copyShot.addEventListener("click", async () => {

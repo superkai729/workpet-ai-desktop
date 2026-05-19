@@ -14,9 +14,12 @@ const path = require("path");
 
 let mainWindow;
 let petWindow;
+let screenshotWindow;
 let toolWindow;
 let tray;
 let isQuitting = false;
+let latestScreenshot = null;
+let selectionBaseScreenshot = null;
 
 const rendererPath = (...parts) => path.join(__dirname, "..", "renderer", ...parts);
 const settingsPath = () => path.join(app.getPath("userData"), "settings.json");
@@ -231,6 +234,34 @@ function createToolWindow(tool = "chat") {
   toolWindow.loadFile(rendererPath("tool.html"), { query: { tool } });
 }
 
+async function createScreenshotWindow() {
+  if (screenshotWindow && !screenshotWindow.isDestroyed()) {
+    screenshotWindow.close();
+  }
+
+  if (toolWindow && !toolWindow.isDestroyed()) {
+    toolWindow.close();
+  }
+
+  selectionBaseScreenshot = await capturePrimaryScreen();
+  const { bounds } = screen.getPrimaryDisplay();
+  screenshotWindow = new BrowserWindow({
+    ...bounds,
+    frame: false,
+    fullscreen: true,
+    resizable: false,
+    movable: false,
+    alwaysOnTop: true,
+    skipTaskbar: true,
+    backgroundColor: "#000000",
+    webPreferences: {
+      preload: rendererPath("preload.js")
+    }
+  });
+
+  screenshotWindow.loadFile(rendererPath("screenshot-select.html"));
+}
+
 function createTray() {
   if (tray) return;
 
@@ -347,7 +378,15 @@ ipcMain.handle("pet:move-by", (_event, movement) => {
   return true;
 });
 
-ipcMain.handle("tool:open", (_event, tool) => {
+ipcMain.handle("tool:open", async (_event, tool) => {
+  if (tool === "screenshot") {
+    await createScreenshotWindow();
+    if (petWindow && !petWindow.isDestroyed()) {
+      petWindow.webContents.send("pet:state", "thinking");
+    }
+    return true;
+  }
+
   createToolWindow(tool);
   if (petWindow && !petWindow.isDestroyed()) {
     petWindow.webContents.send("pet:state", "thinking");
@@ -356,6 +395,10 @@ ipcMain.handle("tool:open", (_event, tool) => {
 });
 
 ipcMain.handle("screenshot:capture", async () => {
+  if (screenshotWindow && !screenshotWindow.isDestroyed() && selectionBaseScreenshot) {
+    return selectionBaseScreenshot;
+  }
+
   return capturePrimaryScreen();
 });
 
@@ -364,6 +407,33 @@ ipcMain.handle("screenshot:copy", (_event, dataUrl) => {
   clipboard.writeImage(image);
   return true;
 });
+
+ipcMain.handle("screenshot:complete-selection", (_event, payload) => {
+  const image = nativeImage.createFromDataURL(payload.dataUrl);
+  clipboard.writeImage(image);
+  latestScreenshot = {
+    ...payload,
+    copiedAt: new Date().toISOString()
+  };
+
+  if (screenshotWindow && !screenshotWindow.isDestroyed()) {
+    screenshotWindow.close();
+  }
+  selectionBaseScreenshot = null;
+
+  createToolWindow("screenshot");
+  return true;
+});
+
+ipcMain.handle("screenshot:cancel-selection", () => {
+  if (screenshotWindow && !screenshotWindow.isDestroyed()) {
+    screenshotWindow.close();
+  }
+  selectionBaseScreenshot = null;
+  return true;
+});
+
+ipcMain.handle("screenshot:get-latest", () => latestScreenshot);
 
 ipcMain.handle("app:quit", () => {
   isQuitting = true;
