@@ -119,4 +119,8 @@ document.addEventListener("click", async (event) => {
   }
 });
 
+window.workpet.onPetSettings((settings) => {
+  document.body.dataset.petTheme = settings.petTheme || "orange";
+});
+
 window.workpet.onPetState((state) => setState(state));

@@ -2,6 +2,16 @@ const panels = [...document.querySelectorAll("[data-step]")];
 const fileInput = document.querySelector("#petPhoto");
 const photoPreview = document.querySelector("#photoPreview");
 
+function getSelectedPetOptions() {
+  const selectedPet = document.querySelector(".pet-card.selected");
+  const petName = document.querySelector("#petName")?.value || "年糕";
+
+  return {
+    petName,
+    petTheme: selectedPet?.dataset.pet || "orange"
+  };
+}
+
 function showStep(step) {
   panels.forEach((panel) => {
     panel.classList.toggle("hidden", panel.dataset.step !== step);
@@ -19,17 +29,17 @@ document.addEventListener("click", (event) => {
 });
 
 document.querySelector("#tryDefault").addEventListener("click", async () => {
-  await window.workpet.showPet();
+  await window.workpet.showPet({ petName: "年糕", petTheme: "orange" });
   showStep("complete");
 });
 
 document.querySelector("#launchPet").addEventListener("click", async () => {
-  await window.workpet.showPet();
+  await window.workpet.showPet(getSelectedPetOptions());
   showStep("complete");
 });
 
 document.querySelector("#showPetAgain").addEventListener("click", async () => {
-  await window.workpet.showPet();
+  await window.workpet.showPet(getSelectedPetOptions());
 });
 
 document.querySelectorAll(".pet-card").forEach((card) => {

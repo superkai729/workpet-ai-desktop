@@ -1,4 +1,14 @@
-const { app, BrowserWindow, ipcMain, screen, Tray, Menu, nativeImage } = require("electron");
+const {
+  app,
+  BrowserWindow,
+  clipboard,
+  desktopCapturer,
+  ipcMain,
+  Menu,
+  nativeImage,
+  screen,
+  Tray
+} = require("electron");
 const fs = require("fs");
 const path = require("path");
 
@@ -11,8 +21,37 @@ let isQuitting = false;
 const rendererPath = (...parts) => path.join(__dirname, "..", "renderer", ...parts);
 const settingsPath = () => path.join(app.getPath("userData"), "settings.json");
 
+const petThemes = {
+  orange: {
+    name: "\u6a58\u767d\u5c0f\u5ba0",
+    primary: "#F4A261",
+    secondary: "#FFF3DF",
+    outline: "#C77946"
+  },
+  cream: {
+    name: "\u5976\u6cb9\u5c0f\u5ba0",
+    primary: "#F2D8A7",
+    secondary: "#FFF9F0",
+    outline: "#B98B52"
+  },
+  mint: {
+    name: "\u8584\u8377\u9886\u7ed3",
+    primary: "#8ECDB7",
+    secondary: "#FFF9F0",
+    outline: "#4D9A86"
+  },
+  blue: {
+    name: "\u84dd\u8272\u5de5\u724c",
+    primary: "#8AB6D6",
+    secondary: "#FFF9F0",
+    outline: "#4C82A8"
+  }
+};
+
 const defaultSettings = {
-  petPosition: null
+  petName: "\u5e74\u7cd5",
+  petPosition: null,
+  petTheme: "orange"
 };
 
 function readSettings() {
@@ -28,14 +67,42 @@ function writeSettings(nextSettings) {
   fs.writeFileSync(settingsPath(), JSON.stringify(nextSettings, null, 2));
 }
 
+function updateSettings(partialSettings) {
+  const nextSettings = { ...readSettings(), ...partialSettings };
+  writeSettings(nextSettings);
+  return nextSettings;
+}
+
 function savePetPosition() {
   if (!petWindow || petWindow.isDestroyed()) return;
 
   const { x, y } = petWindow.getBounds();
-  writeSettings({
-    ...readSettings(),
-    petPosition: { x, y }
-  });
+  updateSettings({ petPosition: { x, y } });
+}
+
+function getCurrentTheme() {
+  const settings = readSettings();
+  return petThemes[settings.petTheme] || petThemes.orange;
+}
+
+function createPetIcon(theme = getCurrentTheme()) {
+  const svg = `
+    <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">
+      <rect width="32" height="32" rx="7" fill="transparent"/>
+      <path d="M8 12 12 6 16 11 20 6 24 12v10H8z" fill="${theme.secondary}" stroke="${theme.outline}" stroke-width="2"/>
+      <path d="M8 12h16v10H8z" fill="${theme.secondary}" stroke="${theme.outline}" stroke-width="2"/>
+      <path d="M16 11h8v11h-8z" fill="${theme.primary}" opacity="0.9"/>
+      <circle cx="14" cy="17" r="2" fill="#2F3136"/>
+      <circle cx="20" cy="17" r="2" fill="#2F3136"/>
+      <rect x="15" y="22" width="3" height="2" fill="#2F3136"/>
+      <rect x="24" y="20" width="5" height="3" rx="1" fill="${theme.outline}"/>
+    </svg>`;
+  return nativeImage.createFromDataURL(`data:image/svg+xml;utf8,${encodeURIComponent(svg)}`);
+}
+
+function updateTrayIcon() {
+  if (!tray) return;
+  tray.setImage(createPetIcon());
 }
 
 function createMainWindow() {
@@ -44,7 +111,7 @@ function createMainWindow() {
     height: 680,
     minWidth: 840,
     minHeight: 600,
-    title: "工位小宠",
+    title: "\u5de5\u4f4d\u5c0f\u5ba0",
     backgroundColor: "#fff9f0",
     webPreferences: {
       preload: rendererPath("preload.js")
@@ -60,10 +127,16 @@ function createMainWindow() {
   });
 }
 
+function sendPetSettings() {
+  if (!petWindow || petWindow.isDestroyed()) return;
+  petWindow.webContents.send("pet:settings", readSettings());
+}
+
 function createPetWindow() {
   if (petWindow && !petWindow.isDestroyed()) {
     petWindow.show();
     petWindow.focus();
+    sendPetSettings();
     return;
   }
 
@@ -90,6 +163,7 @@ function createPetWindow() {
 
   petWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
   petWindow.loadFile(rendererPath("pet.html"));
+  petWindow.webContents.once("did-finish-load", sendPetSettings);
   petWindow.on("moved", savePetPosition);
   petWindow.on("close", savePetPosition);
 }
@@ -99,10 +173,16 @@ function createToolWindow(tool = "chat") {
     toolWindow.close();
   }
 
+  const titleByTool = {
+    chat: "\u95ee\u95ee\u5b83",
+    screenshot: "\u622a\u56fe",
+    translate: "\u7ffb\u8bd1"
+  };
+
   toolWindow = new BrowserWindow({
-    width: 460,
-    height: 540,
-    title: tool === "translate" ? "翻译" : "问问它",
+    width: tool === "screenshot" ? 760 : 460,
+    height: tool === "screenshot" ? 620 : 540,
+    title: titleByTool[tool] || titleByTool.chat,
     backgroundColor: "#fff9f0",
     alwaysOnTop: true,
     webPreferences: {
@@ -116,30 +196,20 @@ function createToolWindow(tool = "chat") {
 function createTray() {
   if (tray) return;
 
-  const svg = `
-    <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">
-      <rect width="32" height="32" rx="7" fill="#F4A261"/>
-      <path d="M9 12 13 6 16 12 19 6 23 12v10H9z" fill="#FFF9F0"/>
-      <circle cx="14" cy="17" r="2" fill="#2F3136"/>
-      <circle cx="20" cy="17" r="2" fill="#2F3136"/>
-      <rect x="14" y="22" width="4" height="2" fill="#2F3136"/>
-    </svg>`;
-  const icon = nativeImage.createFromDataURL(`data:image/svg+xml;utf8,${encodeURIComponent(svg)}`);
-
-  tray = new Tray(icon);
-  tray.setToolTip("工位小宠");
+  tray = new Tray(createPetIcon());
+  tray.setToolTip("\u5de5\u4f4d\u5c0f\u5ba0");
   tray.setContextMenu(
     Menu.buildFromTemplate([
-      { label: "显示桌宠", click: () => createPetWindow() },
+      { label: "\u663e\u793a\u684c\u5ba0", click: () => createPetWindow() },
       {
-        label: "隐藏桌宠",
+        label: "\u9690\u85cf\u684c\u5ba0",
         click: () => {
           if (petWindow && !petWindow.isDestroyed()) petWindow.hide();
         }
       },
       { type: "separator" },
       {
-        label: "打开主界面",
+        label: "\u6253\u5f00\u4e3b\u754c\u9762",
         click: () => {
           if (!mainWindow || mainWindow.isDestroyed()) createMainWindow();
           mainWindow.show();
@@ -148,7 +218,7 @@ function createTray() {
       },
       { type: "separator" },
       {
-        label: "退出",
+        label: "\u9000\u51fa",
         click: () => {
           isQuitting = true;
           app.quit();
@@ -156,6 +226,31 @@ function createTray() {
       }
     ])
   );
+}
+
+async function capturePrimaryScreen() {
+  const primaryDisplay = screen.getPrimaryDisplay();
+  const { width, height } = primaryDisplay.size;
+  const sources = await desktopCapturer.getSources({
+    types: ["screen"],
+    thumbnailSize: { width, height }
+  });
+
+  const source =
+    sources.find((item) => item.display_id === String(primaryDisplay.id)) ||
+    sources.find((item) => item.name.toLowerCase().includes("screen")) ||
+    sources[0];
+
+  if (!source) {
+    throw new Error("No screen source available.");
+  }
+
+  return {
+    dataUrl: source.thumbnail.toDataURL(),
+    displayName: source.name,
+    width: source.thumbnail.getSize().width,
+    height: source.thumbnail.getSize().height
+  };
 }
 
 app.whenReady().then(() => {
@@ -175,7 +270,12 @@ app.on("window-all-closed", () => {
   }
 });
 
-ipcMain.handle("pet:show", () => {
+ipcMain.handle("pet:show", (_event, options = {}) => {
+  const petTheme = petThemes[options.petTheme] ? options.petTheme : readSettings().petTheme;
+  const petName = options.petName?.trim() || readSettings().petName;
+
+  updateSettings({ petName, petTheme });
+  updateTrayIcon();
   createPetWindow();
   return true;
 });
@@ -217,6 +317,17 @@ ipcMain.handle("tool:open", (_event, tool) => {
   return true;
 });
 
+ipcMain.handle("screenshot:capture", async () => {
+  return capturePrimaryScreen();
+});
+
+ipcMain.handle("screenshot:copy", (_event, dataUrl) => {
+  const image = nativeImage.createFromDataURL(dataUrl);
+  clipboard.writeImage(image);
+  return true;
+});
+
 ipcMain.handle("app:quit", () => {
+  isQuitting = true;
   app.quit();
 });
