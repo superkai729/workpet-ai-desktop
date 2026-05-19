@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>工位小宠</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="hero-panel" data-step="welcome">
+        <div class="brand-row">
+          <div class="logo-mark">P</div>
+          <span>工位小宠</span>
+        </div>
+
+        <div class="hero-grid">
+          <div class="hero-copy">
+            <p class="eyebrow">AI 像素桌宠助手</p>
+            <h1>让你的宠物陪你一起打工</h1>
+            <p class="hero-text">上传宠物照片，生成专属像素桌宠。它会安静陪在电脑桌面上，也能帮你完成翻译、问答等轻量工作。</p>
+            <div class="actions">
+              <button class="primary" data-next="upload">上传我的宠物</button>
+              <button class="secondary" id="tryDefault">先体验默认宠物</button>
+            </div>
+          </div>
+
+          <div class="desktop-preview" aria-label="桌宠预览">
+            <div class="fake-window"></div>
+            <div class="taskbar"></div>
+            <div class="pet-orbit">
+              <div class="pixel-pet idle" aria-hidden="true">
+                <span class="ear left"></span>
+                <span class="ear right"></span>
+                <span class="face"></span>
+                <span class="body"></span>
+                <span class="tail"></span>
+              </div>
+              <div class="pet-bubble">休息一下？</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="flow-panel hidden" data-step="upload">
+        <button class="ghost" data-next="welcome">返回</button>
+        <h2>上传你的宠物照片</h2>
+        <p class="muted">建议上传清晰、正面、无遮挡的猫狗照片。MVP 阶段先用本地预览模拟生成流程。</p>
+        <label class="upload-zone">
+          <input id="petPhoto" type="file" accept="image/png,image/jpeg,image/webp" />
+          <span>点击选择宠物照片</span>
+          <small>JPG / PNG / WEBP，10MB 以内</small>
+        </label>
+        <div id="photoPreview" class="photo-preview hidden"></div>
+        <div class="actions end">
+          <button class="secondary" data-next="welcome">取消</button>
+          <button class="primary" data-next="generating">开始生成</button>
+        </div>
+      </section>
+
+      <section class="flow-panel hidden" data-step="generating">
+        <div class="loader-pet pixel-pet thinking">
+          <span class="ear left"></span>
+          <span class="ear right"></span>
+          <span class="face"></span>
+          <span class="body"></span>
+          <span class="tail"></span>
+        </div>
+        <h2>正在生成你的像素宠物</h2>
+        <p class="muted">正在提取毛色、轮廓和可爱特征...</p>
+      </section>
+
+      <section class="flow-panel hidden" data-step="result">
+        <h2>选择你的桌宠形象</h2>
+        <p class="muted">这是 MVP 的本地像素宠物预览，后续会替换为 AI 生成结果。</p>
+        <div class="pet-options">
+          <button class="pet-card selected" data-pet="orange">橘白小宠</button>
+          <button class="pet-card" data-pet="cream">奶油小宠</button>
+          <button class="pet-card" data-pet="mint">薄荷领结</button>
+          <button class="pet-card" data-pet="blue">蓝色工牌</button>
+        </div>
+        <label class="field">
+          <span>宠物名字</span>
+          <input id="petName" value="年糕" />
+        </label>
+        <div class="actions end">
+          <button class="secondary" data-next="upload">重新上传</button>
+          <button class="primary" id="launchPet">就选它，进入桌面</button>
+        </div>
+      </section>
+
+      <section class="flow-panel complete-panel hidden" data-step="complete">
+        <div class="complete-icon">✓</div>
+        <h2>桌宠已出现在桌面</h2>
+        <p class="muted">你可以在屏幕右下角找到它。轻点桌宠打开菜单，按住桌宠拖动可以移动位置。</p>
+        <div class="complete-preview">
+          <div class="pet-bubble">我在桌面等你</div>
+          <div class="pixel-pet happy" aria-hidden="true">
+            <span class="ear left"></span>
+            <span class="ear right"></span>
+            <span class="face"></span>
+            <span class="body"></span>
+            <span class="tail"></span>
+          </div>
+        </div>
+        <div class="actions end">
+          <button class="secondary" data-next="result">返回重选</button>
+          <button class="primary" id="showPetAgain">显示桌宠</button>
+        </div>
+      </section>
+    </main>
+
+    <script src="./app.js"></script>
+  </body>
+</html>

@@ -1,0 +1,14 @@
+{
+  "name": "workpet-ai-desktop",
+  "version": "0.1.0",
+  "description": "AI pixel pet desktop companion MVP.",
+  "main": "src/main/main.js",
+  "private": true,
+  "scripts": {
+    "dev": "electron .",
+    "start": "electron ."
+  },
+  "devDependencies": {
+    "electron": "^31.7.7"
+  }
+}

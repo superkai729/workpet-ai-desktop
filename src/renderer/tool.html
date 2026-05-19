@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>工位小宠工具</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="tool-shell">
+      <div class="brand-row compact">
+        <div class="logo-mark">P</div>
+        <span id="toolTitle">问问年糕</span>
+      </div>
+      <section class="tool-card" id="chatTool">
+        <p class="muted">今天想让我帮你看什么？</p>
+        <textarea id="chatInput" placeholder="输入问题，例如：帮我总结这段文字"></textarea>
+        <button class="primary full" id="chatSend">发送</button>
+        <div class="answer" id="chatAnswer">这里会显示 AI 回答。当前 MVP 使用本地占位，后续接入真实模型 API。</div>
+      </section>
+      <section class="tool-card hidden" id="translateTool">
+        <p class="muted">输入或粘贴要翻译的内容。</p>
+        <textarea id="translateInput" placeholder="Paste text here..."></textarea>
+        <button class="primary full" id="translateSend">翻译</button>
+        <div class="answer" id="translateAnswer">翻译结果会显示在这里。</div>
+      </section>
+    </main>
+    <script src="./tool.js"></script>
+  </body>
+</html>

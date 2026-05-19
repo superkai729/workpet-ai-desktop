@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>桌宠</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body class="pet-body">
+    <div class="pet-stage" id="petStage">
+      <div class="speech" id="speech">休息一下？</div>
+      <div class="pet-menu hidden" id="petMenu">
+        <button data-action="happy">♡ 摸摸</button>
+        <button data-action="eat">◒ 喂食</button>
+        <button data-action="sleep">☾ 睡觉</button>
+        <hr />
+        <button data-tool="screenshot">▣ 截图</button>
+        <button data-tool="translate">文 翻译</button>
+        <button data-tool="chat">? 问问它</button>
+        <hr />
+        <button data-action="idle">⚙ 设置</button>
+        <button data-action="hide">× 隐藏宠物</button>
+      </div>
+      <button class="pet-button" id="petButton" aria-label="工位小宠">
+        <span class="pixel-pet idle" id="pet">
+          <span class="ear left"></span>
+          <span class="ear right"></span>
+          <span class="face"></span>
+          <span class="body"></span>
+          <span class="tail"></span>
+        </span>
+      </button>
+    </div>
+    <script src="./pet.js"></script>
+  </body>
+</html>
