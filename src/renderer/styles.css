@@ -571,6 +571,44 @@ textarea {
   object-fit: contain;
 }
 
+.screenshot-ai-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.result-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  margin-top: 14px;
+}
+
+.result-block {
+  min-width: 0;
+}
+
+.result-block h3 {
+  margin: 0 0 8px;
+  font-size: 14px;
+}
+
+.result-block pre {
+  min-height: 130px;
+  max-height: 240px;
+  margin: 0;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px;
+  background: #fff;
+  color: var(--ink);
+  font: 13px/1.65 "Segoe UI", "Microsoft YaHei", sans-serif;
+}
+
 button:disabled {
   cursor: not-allowed;
   opacity: 0.55;

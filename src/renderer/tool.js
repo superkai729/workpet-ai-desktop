@@ -9,8 +9,16 @@ const screenshotImage = document.querySelector("#screenshotImage");
 const screenshotStatus = document.querySelector("#screenshotStatus");
 const copyShot = document.querySelector("#copyShot");
 const recaptureShot = document.querySelector("#recaptureShot");
+const ocrShot = document.querySelector("#ocrShot");
+const translateShot = document.querySelector("#translateShot");
+const copyOcr = document.querySelector("#copyOcr");
+const copyTranslation = document.querySelector("#copyTranslation");
+const ocrResult = document.querySelector("#ocrResult");
+const translationResult = document.querySelector("#translationResult");
 
 let currentScreenshotDataUrl = "";
+let currentOcrText = "";
+let currentTranslationText = "";
 
 function showOnly(activeTool) {
   chatTool.classList.toggle("hidden", activeTool !== "chat");
@@ -18,9 +26,11 @@ function showOnly(activeTool) {
   screenshotTool.classList.toggle("hidden", activeTool !== "screenshot");
 }
 
-async function captureScreenshot() {
+async function loadScreenshotResult() {
   screenshotStatus.textContent = "\u6b63\u5728\u8bfb\u53d6\u6846\u9009\u7ed3\u679c...";
   copyShot.disabled = true;
+  ocrShot.disabled = true;
+  translateShot.disabled = true;
   screenshotImage.removeAttribute("src");
 
   try {
@@ -34,8 +44,72 @@ async function captureScreenshot() {
     screenshotImage.src = result.dataUrl;
     screenshotStatus.textContent = `\u5df2\u81ea\u52a8\u590d\u5236\u5230\u526a\u8d34\u677f, ${result.width} x ${result.height}`;
     copyShot.disabled = false;
+    ocrShot.disabled = false;
+    translateShot.disabled = false;
   } catch (error) {
     screenshotStatus.textContent = `\u622a\u56fe\u5931\u8d25: ${error.message}`;
+  }
+}
+
+async function sendChat() {
+  const value = document.querySelector("#chatInput").value.trim();
+  const answer = document.querySelector("#chatAnswer");
+  if (!value) {
+    answer.textContent = "\u5148\u8f93\u5165\u4e00\u4e2a\u95ee\u9898, \u6211\u518d\u5e2e\u4f60\u770b\u3002";
+    return;
+  }
+
+  answer.textContent = "\u5c0f\u5ba0\u601d\u8003\u4e2d...";
+  try {
+    answer.textContent = await window.workpet.askAI(value);
+  } catch (error) {
+    answer.textContent = `OpenAI \u8bf7\u6c42\u5931\u8d25: ${error.message}`;
+  }
+}
+
+async function translateInputText() {
+  const value = document.querySelector("#translateInput").value.trim();
+  const answer = document.querySelector("#translateAnswer");
+  if (!value) {
+    answer.textContent = "\u8bf7\u8f93\u5165\u8981\u7ffb\u8bd1\u7684\u5185\u5bb9\u3002";
+    return;
+  }
+
+  answer.textContent = "\u6b63\u5728\u7ffb\u8bd1...";
+  try {
+    answer.textContent = await window.workpet.translateText(value);
+  } catch (error) {
+    answer.textContent = `OpenAI \u7ffb\u8bd1\u5931\u8d25: ${error.message}`;
+  }
+}
+
+async function recognizeScreenshotText() {
+  if (!currentScreenshotDataUrl) return;
+  ocrShot.disabled = true;
+  ocrResult.textContent = "\u6b63\u5728\u8bc6\u522b\u6587\u5b57...";
+  try {
+    currentOcrText = await window.workpet.ocrImage(currentScreenshotDataUrl);
+    ocrResult.textContent = currentOcrText;
+    copyOcr.disabled = !currentOcrText;
+  } catch (error) {
+    ocrResult.textContent = `OCR \u5931\u8d25: ${error.message}`;
+  } finally {
+    ocrShot.disabled = false;
+  }
+}
+
+async function translateScreenshotText() {
+  if (!currentScreenshotDataUrl) return;
+  translateShot.disabled = true;
+  translationResult.textContent = "\u6b63\u5728\u8bc6\u522b\u5e76\u7ffb\u8bd1...";
+  try {
+    currentTranslationText = await window.workpet.translateImage(currentScreenshotDataUrl);
+    translationResult.textContent = currentTranslationText;
+    copyTranslation.disabled = !currentTranslationText;
+  } catch (error) {
+    translationResult.textContent = `\u622a\u56fe\u7ffb\u8bd1\u5931\u8d25: ${error.message}`;
+  } finally {
+    translateShot.disabled = false;
   }
 }
 
@@ -49,30 +123,22 @@ if (tool === "translate") {
 if (tool === "screenshot") {
   title.textContent = "\u622a\u56fe";
   showOnly("screenshot");
-  captureScreenshot();
+  loadScreenshotResult();
 }
 
-document.querySelector("#chatSend").addEventListener("click", () => {
-  const value = document.querySelector("#chatInput").value.trim();
-  document.querySelector("#chatAnswer").textContent = value
-    ? `\u6211\u5148\u7ed9\u4f60\u4e00\u4e2a MVP \u5360\u4f4d\u56de\u7b54: \u8fd9\u6bb5\u5185\u5bb9\u7684\u91cd\u70b9\u662f\u300c${value.slice(0, 24)}\u300d\u3002\u540e\u7eed\u4f1a\u63a5\u5165\u771f\u5b9e AI\u3002`
-    : "\u5148\u8f93\u5165\u4e00\u4e2a\u95ee\u9898, \u6211\u518d\u5e2e\u4f60\u770b\u3002";
-});
-
-document.querySelector("#translateSend").addEventListener("click", () => {
-  const value = document.querySelector("#translateInput").value.trim();
-  document.querySelector("#translateAnswer").textContent = value
-    ? `Translation placeholder: ${value}`
-    : "\u8bf7\u8f93\u5165\u8981\u7ffb\u8bd1\u7684\u5185\u5bb9\u3002";
-});
-
-recaptureShot.addEventListener("click", () => {
-  window.workpet.openTool("screenshot");
-});
-
+document.querySelector("#chatSend").addEventListener("click", sendChat);
+document.querySelector("#translateSend").addEventListener("click", translateInputText);
+recaptureShot.addEventListener("click", () => window.workpet.openTool("screenshot"));
 copyShot.addEventListener("click", async () => {
   if (!currentScreenshotDataUrl) return;
-
   await window.workpet.copyScreenshot(currentScreenshotDataUrl);
   screenshotStatus.textContent = "\u5df2\u590d\u5236\u5230\u526a\u8d34\u677f";
+});
+ocrShot.addEventListener("click", recognizeScreenshotText);
+translateShot.addEventListener("click", translateScreenshotText);
+copyOcr.addEventListener("click", async () => {
+  if (currentOcrText) await navigator.clipboard.writeText(currentOcrText);
+});
+copyTranslation.addEventListener("click", async () => {
+  if (currentTranslationText) await navigator.clipboard.writeText(currentTranslationText);
 });

@@ -22,7 +22,30 @@ let latestScreenshot = null;
 let selectionBaseScreenshot = null;
 
 const rendererPath = (...parts) => path.join(__dirname, "..", "renderer", ...parts);
+const projectPath = path.join(__dirname, "..", "..");
 const settingsPath = () => path.join(app.getPath("userData"), "settings.json");
+
+function loadLocalEnv() {
+  const envPath = path.join(projectPath, ".env");
+  if (!fs.existsSync(envPath)) return;
+
+  const lines = fs.readFileSync(envPath, "utf8").split(/\r?\n/);
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#")) continue;
+
+    const separatorIndex = trimmed.indexOf("=");
+    if (separatorIndex === -1) continue;
+
+    const key = trimmed.slice(0, separatorIndex).trim();
+    const value = trimmed.slice(separatorIndex + 1).trim().replace(/^["']|["']$/g, "");
+    if (key && !process.env[key]) {
+      process.env[key] = value;
+    }
+  }
+}
+
+loadLocalEnv();
 
 const petThemes = {
   orange: {
@@ -322,6 +345,73 @@ async function capturePrimaryScreen() {
   };
 }
 
+function getOpenAIConfig() {
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) {
+    throw new Error("OpenAI API key is missing. Create .env with OPENAI_API_KEY.");
+  }
+
+  return {
+    apiKey,
+    model: process.env.OPENAI_MODEL || "gpt-5-mini"
+  };
+}
+
+function extractResponseText(payload) {
+  if (typeof payload?.output_text === "string" && payload.output_text.trim()) {
+    return payload.output_text.trim();
+  }
+
+  const textParts = [];
+  for (const outputItem of payload?.output || []) {
+    for (const contentItem of outputItem?.content || []) {
+      if (contentItem?.type === "output_text" && contentItem.text) {
+        textParts.push(contentItem.text);
+      }
+      if (contentItem?.type === "text" && contentItem.text) {
+        textParts.push(contentItem.text);
+      }
+    }
+  }
+
+  return textParts.join("\n").trim();
+}
+
+async function callOpenAI({ instructions, content, maxOutputTokens = 1200 }) {
+  const { apiKey, model } = getOpenAIConfig();
+  const response = await fetch("https://api.openai.com/v1/responses", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      model,
+      instructions,
+      input: [
+        {
+          role: "user",
+          content
+        }
+      ],
+      max_output_tokens: maxOutputTokens
+    })
+  });
+
+  const payload = await response.json().catch(() => null);
+  if (!response.ok) {
+    const message = payload?.error?.message || `OpenAI request failed: ${response.status}`;
+    throw new Error(message);
+  }
+
+  const text = extractResponseText(payload);
+  if (!text) {
+    throw new Error("OpenAI returned an empty response.");
+  }
+
+  return text;
+}
+
 app.whenReady().then(() => {
   createMainWindow();
   createTray();
@@ -434,6 +524,48 @@ ipcMain.handle("screenshot:cancel-selection", () => {
 });
 
 ipcMain.handle("screenshot:get-latest", () => latestScreenshot);
+
+ipcMain.handle("ai:chat", async (_event, question) => {
+  return callOpenAI({
+    instructions:
+      "你是工位小宠里的轻量工作助手。回答要简洁、直接、友好。除非用户要求展开，否则优先给可执行结论。",
+    content: [{ type: "input_text", text: question }],
+    maxOutputTokens: 1400
+  });
+});
+
+ipcMain.handle("ai:translate", async (_event, text) => {
+  return callOpenAI({
+    instructions:
+      "你是专业翻译助手。自动识别输入语言：中文翻译成自然英文；非中文翻译成自然中文。只输出译文，不要解释。",
+    content: [{ type: "input_text", text }],
+    maxOutputTokens: 1600
+  });
+});
+
+ipcMain.handle("ai:ocr", async (_event, imageDataUrl) => {
+  return callOpenAI({
+    instructions:
+      "你是 OCR 助手。请准确识别图片中的可见文字，保持原文语言和换行。只输出识别到的文字；如果没有文字，输出“未识别到文字”。",
+    content: [
+      { type: "input_text", text: "识别这张截图里的文字。" },
+      { type: "input_image", image_url: imageDataUrl }
+    ],
+    maxOutputTokens: 2200
+  });
+});
+
+ipcMain.handle("ai:translate-screenshot", async (_event, imageDataUrl) => {
+  return callOpenAI({
+    instructions:
+      "你是截图翻译助手。先识别图片中的文字，再翻译。中文翻译成自然英文；非中文翻译成自然中文。输出格式：先给“识别文字：”，再给“翻译结果：”。",
+    content: [
+      { type: "input_text", text: "识别并翻译这张截图中的文字。" },
+      { type: "input_image", image_url: imageDataUrl }
+    ],
+    maxOutputTokens: 2600
+  });
+});
 
 ipcMain.handle("app:quit", () => {
   isQuitting = true;
