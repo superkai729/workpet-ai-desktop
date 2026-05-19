@@ -86,18 +86,56 @@ function getCurrentTheme() {
 }
 
 function createPetIcon(theme = getCurrentTheme()) {
-  const svg = `
-    <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">
-      <rect width="32" height="32" rx="7" fill="transparent"/>
-      <path d="M8 12 12 6 16 11 20 6 24 12v10H8z" fill="${theme.secondary}" stroke="${theme.outline}" stroke-width="2"/>
-      <path d="M8 12h16v10H8z" fill="${theme.secondary}" stroke="${theme.outline}" stroke-width="2"/>
-      <path d="M16 11h8v11h-8z" fill="${theme.primary}" opacity="0.9"/>
-      <circle cx="14" cy="17" r="2" fill="#2F3136"/>
-      <circle cx="20" cy="17" r="2" fill="#2F3136"/>
-      <rect x="15" y="22" width="3" height="2" fill="#2F3136"/>
-      <rect x="24" y="20" width="5" height="3" rx="1" fill="${theme.outline}"/>
-    </svg>`;
-  return nativeImage.createFromDataURL(`data:image/svg+xml;utf8,${encodeURIComponent(svg)}`);
+  const width = 32;
+  const height = 32;
+  const buffer = Buffer.alloc(width * height * 4);
+
+  function hexToRgb(hex) {
+    const value = hex.replace("#", "");
+    return {
+      r: parseInt(value.slice(0, 2), 16),
+      g: parseInt(value.slice(2, 4), 16),
+      b: parseInt(value.slice(4, 6), 16)
+    };
+  }
+
+  function setPixel(x, y, hex, alpha = 255) {
+    if (x < 0 || y < 0 || x >= width || y >= height) return;
+    const { r, g, b } = hexToRgb(hex);
+    const index = (y * width + x) * 4;
+    buffer[index] = b;
+    buffer[index + 1] = g;
+    buffer[index + 2] = r;
+    buffer[index + 3] = alpha;
+  }
+
+  function rect(x, y, w, h, hex, alpha = 255) {
+    for (let row = y; row < y + h; row += 1) {
+      for (let col = x; col < x + w; col += 1) {
+        setPixel(col, row, hex, alpha);
+      }
+    }
+  }
+
+  const primary = theme.primary;
+  const secondary = theme.secondary;
+  const outline = theme.outline;
+  const ink = "#2F3136";
+
+  rect(9, 10, 14, 3, outline);
+  rect(7, 13, 18, 12, outline);
+  rect(10, 7, 4, 6, outline);
+  rect(19, 7, 4, 6, outline);
+  rect(9, 13, 7, 10, secondary);
+  rect(16, 13, 7, 10, primary);
+  rect(12, 16, 2, 2, ink);
+  rect(19, 16, 2, 2, ink);
+  rect(15, 21, 4, 2, ink);
+  rect(23, 20, 5, 3, outline);
+  rect(25, 18, 3, 2, outline);
+  rect(10, 25, 12, 2, "#000000", 45);
+
+  return nativeImage.createFromBitmap(buffer, { width, height, scaleFactor: 1 });
 }
 
 function updateTrayIcon() {
@@ -145,10 +183,10 @@ function createPetWindow() {
   const savedPosition = readSettings().petPosition;
 
   petWindow = new BrowserWindow({
-    width: 220,
-    height: 260,
+    width: 240,
+    height: 380,
     x: savedPosition?.x ?? width - 250,
-    y: savedPosition?.y ?? height - 290,
+    y: savedPosition?.y ?? height - 400,
     frame: false,
     transparent: true,
     resizable: false,
