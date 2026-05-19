@@ -16,6 +16,13 @@ let dragStart = null;
 let isDragging = false;
 let suppressNextClick = false;
 
+function applyPetPalette(palette) {
+  if (!palette) return;
+  document.body.style.setProperty("--orange", palette.primary);
+  document.body.style.setProperty("--pet-secondary", palette.secondary);
+  document.body.style.setProperty("--pet-outline", palette.outline);
+}
+
 function setState(state) {
   pet.className = `pixel-pet ${state}`;
   speech.textContent = speechByState[state] || speechByState.idle;
@@ -121,6 +128,7 @@ document.addEventListener("click", async (event) => {
 
 window.workpet.onPetSettings((settings) => {
   document.body.dataset.petTheme = settings.petTheme || "orange";
+  applyPetPalette(settings.petPalette);
 });
 
 window.workpet.onPetState((state) => setState(state));

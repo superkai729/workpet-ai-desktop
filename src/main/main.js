@@ -77,6 +77,7 @@ const petThemes = {
 
 const defaultSettings = {
   petName: "\u5e74\u7cd5",
+  petPalette: null,
   petPosition: null,
   petTheme: "orange"
 };
@@ -109,7 +110,23 @@ function savePetPosition() {
 
 function getCurrentTheme() {
   const settings = readSettings();
+  if (isValidPalette(settings.petPalette)) {
+    return settings.petPalette;
+  }
   return petThemes[settings.petTheme] || petThemes.orange;
+}
+
+function isValidHexColor(value) {
+  return typeof value === "string" && /^#[0-9a-f]{6}$/i.test(value);
+}
+
+function isValidPalette(palette) {
+  return (
+    palette &&
+    isValidHexColor(palette.primary) &&
+    isValidHexColor(palette.secondary) &&
+    isValidHexColor(palette.outline)
+  );
 }
 
 function createPetIcon(theme = getCurrentTheme()) {
@@ -447,8 +464,9 @@ app.on("window-all-closed", () => {
 ipcMain.handle("pet:show", (_event, options = {}) => {
   const petTheme = petThemes[options.petTheme] ? options.petTheme : readSettings().petTheme;
   const petName = options.petName?.trim() || readSettings().petName;
+  const petPalette = isValidPalette(options.petPalette) ? options.petPalette : null;
 
-  updateSettings({ petName, petTheme });
+  updateSettings({ petName, petPalette, petTheme });
   updateTrayIcon();
   createPetWindow();
   return true;
@@ -570,13 +588,6 @@ ipcMain.handle("ai:translate", async (_event, text) => {
   });
 });
 
-ipcMain.handle("ai:ocr", async () => {
-  throw new Error("当前 DeepSeek 文本接口暂不支持图片 OCR。问答和文本翻译可以正常使用。");
-});
-
-ipcMain.handle("ai:translate-screenshot", async () => {
-  throw new Error("当前 DeepSeek 文本接口不能直接翻译截图。后续接入 OCR 后，可以把识别出的文字交给 DeepSeek 翻译。");
-});
 ipcMain.handle("app:quit", () => {
   isQuitting = true;
   app.quit();

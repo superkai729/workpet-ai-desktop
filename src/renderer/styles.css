@@ -374,7 +374,10 @@ h2 {
 }
 
 .pet-card {
-  min-height: 132px;
+  display: grid;
+  min-height: 172px;
+  place-items: center;
+  gap: 4px;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: #fffdf8;
@@ -384,6 +387,16 @@ h2 {
 .pet-card.selected {
   border-color: #de8f55;
   box-shadow: 0 0 0 3px rgba(244, 162, 97, 0.2);
+}
+
+.pet-card-preview {
+  width: 96px;
+  height: 96px;
+  transform: scale(0.74);
+}
+
+.pet-card-name {
+  font-weight: 700;
 }
 
 .field {
@@ -569,44 +582,6 @@ textarea {
   max-width: 100%;
   max-height: 430px;
   object-fit: contain;
-}
-
-.screenshot-ai-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  margin-top: 14px;
-}
-
-.result-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 14px;
-  margin-top: 14px;
-}
-
-.result-block {
-  min-width: 0;
-}
-
-.result-block h3 {
-  margin: 0 0 8px;
-  font-size: 14px;
-}
-
-.result-block pre {
-  min-height: 130px;
-  max-height: 240px;
-  margin: 0;
-  overflow: auto;
-  white-space: pre-wrap;
-  word-break: break-word;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  padding: 12px;
-  background: #fff;
-  color: var(--ink);
-  font: 13px/1.65 "Segoe UI", "Microsoft YaHei", sans-serif;
 }
 
 button:disabled {
