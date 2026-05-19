@@ -27,6 +27,19 @@ function setState(state) {
   }
 }
 
+function openMenu() {
+  petMenu.classList.remove("hidden");
+}
+
+function closeMenu() {
+  petMenu.classList.add("hidden");
+}
+
+petButton.addEventListener("contextmenu", (event) => {
+  event.preventDefault();
+  openMenu();
+});
+
 petButton.addEventListener("mousedown", (event) => {
   if (event.button !== 0) return;
 
@@ -49,7 +62,7 @@ document.addEventListener("mousemove", async (event) => {
 
   if (!isDragging && Math.hypot(totalX, totalY) > 4) {
     isDragging = true;
-    petMenu.classList.add("hidden");
+    closeMenu();
   }
 
   if (isDragging) {
@@ -73,7 +86,9 @@ document.addEventListener("mouseup", () => {
 
 petButton.addEventListener("click", () => {
   if (suppressNextClick) return;
-  petMenu.classList.toggle("hidden");
+  closeMenu();
+  setState("happy");
+  window.workpet.setPetState("happy");
 });
 
 document.addEventListener("click", async (event) => {
@@ -82,8 +97,13 @@ document.addEventListener("click", async (event) => {
   const action = event.target.dataset.action;
   const tool = event.target.dataset.tool;
 
+  if (!action && !tool) {
+    closeMenu();
+    return;
+  }
+
   if (action) {
-    petMenu.classList.add("hidden");
+    closeMenu();
     if (action === "hide") {
       await window.workpet.hidePet();
       return;
@@ -93,7 +113,7 @@ document.addEventListener("click", async (event) => {
   }
 
   if (tool) {
-    petMenu.classList.add("hidden");
+    closeMenu();
     setState("thinking");
     await window.workpet.openTool(tool);
   }
